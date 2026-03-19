@@ -11,9 +11,6 @@ from transformers import Wav2Vec2FeatureExtractor
 from .dictionary import get_phoneme_id
 
 class L2ArcticDataset(Dataset):
-    """
-    Dataset cho L2-ARCTIC chuẩn research-ready.
-    """
     def __init__(self, root_dir, speaker_list, target_sr=16000, feature_extractor_name="facebook/wav2vec2-base-960h"):
         self.root_dir = root_dir
         self.target_sr = target_sr
@@ -175,9 +172,7 @@ class L2ArcticDataset(Dataset):
             "utt_id": os.path.splitext(os.path.basename(item['wav_path']))[0]
         }
 
-# ==========================================
-# 3. COLLATER CHO DATALOADER
-# ==========================================
+
 def collate_fn_factory(pad_phoneme_id: int = 0):
     def collate_fn(batch):
         # Audio

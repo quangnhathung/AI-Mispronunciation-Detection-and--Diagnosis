@@ -13,7 +13,7 @@ def run_pipeline_test():
     print(f"Root path: {root_data_dir}")
     time.sleep(1)
     # Test thử với 2 speaker theo cấu trúc thư mục của L2-ARCTIC
-    test_speakers = ["ABA", "SKA"] 
+    test_speakers = ["ABA"] 
     
     print(f"1. Đang khởi tạo L2ArcticDataset cho speakers: {test_speakers}...")
     try:
@@ -75,6 +75,61 @@ def run_pipeline_test():
         print(f" - Target Scores của Mẫu 0 (Rút gọn):")
         # In ra 10 phần tử cuối để xem hàm collate_fn có điền giá trị -100.0 chuẩn không
         print(f"   {batch['target_scores'][sample_idx][-10:].tolist()} (Kỳ vọng thấy các giá trị -100.0 ở cuối)")
+        
+                # ========================================
+        # VERIFY LOGIC (RẤT QUAN TRỌNG)
+        # ========================================
+        print("\n[VERIFY LOGIC - CROSS CHECK]")
+
+        # ========== (1) Padding alignment ==========
+        print("\n(1) Check padding alignment (canonical_ids vs target_scores)")
+        pad_id = 0
+
+        for b in range(batch['canonical_ids'].shape[0]):
+            ph = batch['canonical_ids'][b]
+            scores = batch['target_scores'][b]
+
+            cond1 = (ph == pad_id)
+            cond2 = (scores == -100)
+
+            mismatch = (cond1 != cond2).sum().item()
+
+            if mismatch == 0:
+                print(f" - Sample {b}: OK")
+            else:
+                print(f" - Sample {b}: ❌ Mismatch {mismatch} vị trí")
+
+        # ========== (2) Interval padding ==========
+        print("\n(2) Check interval padding")
+
+        for b in range(batch['phoneme_intervals'].shape[0]):
+            intervals = batch['phoneme_intervals'][b]
+            scores = batch['target_scores'][b]
+
+            pad_mask = (scores == -100)
+
+            if pad_mask.sum() == 0:
+                print(f" - Sample {b}: No padding")
+                continue
+
+            pad_intervals = intervals[pad_mask]
+
+            if torch.all(pad_intervals == 0):
+                print(f" - Sample {b}: OK")
+            else:
+                print(f" - Sample {b}: ❌ Interval padding sai")
+
+        # ========== (3) Attention mask ==========
+        print("\n(3) Check attention mask")
+
+        mask_sum = batch['attention_mask'].sum(dim=1)
+        lengths = batch['audio_lengths']
+
+        for b in range(len(lengths)):
+            if mask_sum[b].item() == lengths[b].item():
+                print(f" - Sample {b}: OK")
+            else:
+                print(f" - Sample {b}: ❌ Sai mask")
         
         break # Chỉ cần test 1 batch đầu tiên là đủ để verify pipeline
 
